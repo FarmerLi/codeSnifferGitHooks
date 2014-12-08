@@ -15,9 +15,9 @@ codeSnifferGitHooks
 	* js编码规范
 * 校验不通过将不允许提交代码，不通过时，命令行将会报告本次校验结果，具体到代码行。
 * gjslint提供基本的格式修复工具fixjsstyle，使用方法
-
+```Bash
 $ fixjsstyle path/file.js
-
+```
 修复时建议从后往前修复，这样行号不会发生变动，避免找不到错误行。
 * php 代码规范示例：[http://redmine.huoyunren.com/documents/54]
 * js 代码规范：[http://chajn.org/jsguide/javascriptguide.html]
