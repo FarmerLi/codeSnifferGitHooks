@@ -1,0 +1,275 @@
+#!/usr/bin/php
+<?php
+/**
+ * pre-commit hook, to check js php
+ *
+ * <p>
+ * windows 请替换文件第一行为：
+ * #!D:\path\to\php.exe -q
+ * </p>
+ * php version 5.5
+ *
+ * @author Farmer.Li <me@farmer.li>
+ */
+
+// 执行校验
+(new CheckFileHook())->execute();
+
+/**
+ * 校验文件hook
+ *
+ * @author Farmer.Li <me@farmerli.com>
+ */
+class CheckFileHook
+{
+    protected $config = [];
+
+    private $tempFilePre = 'GitHookTemp';
+
+    private $_status = 0;
+
+    /**
+     * 构造
+     *
+     * @return void
+     */
+    public function __construct($configFile = '/config.ini')
+    {
+        $this->config = parse_ini_file(dirname(__FILE__) . $configFile, true);
+    }
+
+    /**
+     * 获取所有待校验文件
+     * 
+     * @return array
+     */
+    public function getFiles()
+    {
+        //exec('git rev-parse --verify HEAD 2> /dev/null', $output, $return);
+        exec('git rev-parse --verify HEAD', $output, $return);
+        $against = $return == 0 ? 'HEAD' : '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+        exec("git diff-index --cached --name-only --diff-filter=ACMR {$against}", $files);
+        return $files;
+    }
+
+    /**
+     * 执行校验
+     * 
+     * @return void
+     */
+    public function execute()
+    {
+        $files = $this->getFiles();
+        // 没有待校验文件
+        if (empty($files)) {
+            exit(0);
+        }
+        $files = $this->mkTmpFile($files);
+        foreach ($files as $row) {
+            if ($this->exclude($row['file']) == true) {
+                continue;
+            };
+            if ($this->_checkFileExt('php', $row['file']) == true) {
+                $phplint = true;
+                if ($this->config['phplint']['enable'] == '1') {
+                    $phplint = $this->phpLint($row);
+                }
+                
+                if ($phplint && $this->config['phpcs']['enable'] == '1') {
+                    $this->phpCs($row);
+                }
+            }
+            if (
+                $this->_checkFileExt('js', $row['file']) == true &&
+                $this->config['gjslint']['enable']
+            ) {
+                $this->jsLint($row);
+            }
+            @ unlink($row['tmpFile']);
+        }
+        exit($this->_status);
+    }
+
+    /**
+     * 排除文件
+     *
+     * @param string $file 文件路径
+     * 
+     * @return boolean
+     */
+    public function exclude($file)
+    {
+        foreach ($this->config['global']['exclude'] as $rule) {
+            if ($rule != '' && preg_match($rule, $file) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 缓存待校验文件
+     * 
+     * @param string $files files
+     * 
+     * @return array
+     */
+    public function mkTmpFile($files)
+    {
+        $dir = sys_get_temp_dir();
+        //$file = tempnam(,'GitHook');
+        $res = [];
+        foreach ($files as $file) {
+            $content = $this->getFileContent($file);
+            $ext = $this->_getFileExt($file);
+            $tmpFile = tempnam($dir, $this->tempFilePre);
+            if ($tmpFile == false) {
+                echo 'create tmp File Failed, please check tmp dir auth:' . $dir;
+                exit(1);
+            }
+            $realTmpFile = $tmpFile . '.' . $ext;
+            rename($tmpFile, $realTmpFile);
+            // 吐了个槽，不转乱码
+            $content = mb_convert_encoding($content, 'UTF-8', 'UTF-8');
+            file_put_contents($realTmpFile, $content);
+            $res[] = [
+                'tmpFile' => $realTmpFile,
+                'file' => $file
+            ];
+        }
+        return $res;
+    }
+
+    /**
+     * 获取文件扩展名
+     * 
+     * @param string $file file
+     * 
+     * @return string
+     */
+    private function _getFileExt($file)
+    {
+        $info = pathinfo($file);
+        return isset($info['extension']) ? $info['extension'] : '';
+    }
+
+    /**
+     * 获取提交文件内容
+     * 
+     * @param string $file file
+     * 
+     * @return string
+     */
+    public function getFileContent($file)
+    {
+        exec('git diff-index --cached HEAD ' . $file . ' | cut -d " " -f4', $id);
+        exec('git cat-file blob ' . $id[0], $content);
+        $content = implode($content, "\n");
+        return $content;
+    }
+
+    /**
+     * 校验php文件语法
+     * 
+     * @param array $file file
+     * 
+     * @return boolean
+     */
+    public function phpLint($file)
+    {
+        $dir = sys_get_temp_dir();
+        $outPutTmpFile = tempnam($dir, $this->tempFilePre);
+        $cmd = sprintf(
+            "%s -l %s 2>%s 1>&2",
+            $this->config['php']['path'],
+            escapeshellarg($file['tmpFile']),
+            $outPutTmpFile
+        );
+        exec($cmd, $output, $return);
+        $output = file_get_contents($outPutTmpFile);
+        @ unlink($outPutTmpFile);
+        if ($return != 0) {
+            echo PHP_EOL . "FILE : " . $file['file'] . PHP_EOL;
+            echo str_replace($file['tmpFile'], $file['file'], $output) . PHP_EOL;
+            $this->_status = 1;
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 校验php 编码规范
+     * 
+     * @param array $file file
+     * 
+     * @return boolean
+     */
+    public function phpCs($file)
+    {
+        $cmd = sprintf(
+            "%s --standard=%s --encoding=utf-8 -s --tab-width=4 %s",
+            $this->config['phpcs']['path'],
+            $this->config['phpcs']['standard'],
+            escapeshellarg($file['tmpFile'])
+        );
+        exec($cmd, $output, $return);
+        if ($return != 0) {
+            $content = implode($output, PHP_EOL);
+            $tmpFileName = basename($file['tmpFile']);
+            $content = preg_replace("/FILE\:.*?{$tmpFileName}/", 'FILE: ' . $file['file'], $content);
+            echo $content . PHP_EOL;
+            $this->_status = 1;
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 校验js 编码规范
+     * 
+     * @param string $file file
+     * 
+     * @return boolean
+     */
+    public function jsLint($file)
+    {
+        $cmd = sprintf(
+            "%s %s",
+            $this->config['gjslint']['path'],
+            escapeshellarg($file['tmpFile'])
+        );
+        exec($cmd, $output, $return);
+        if ($return != 0) {
+            $content = implode($output, PHP_EOL);
+            echo str_replace($file['tmpFile'], $file['file'], $content);
+            $this->_status = 1;
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * check file ext
+     * 
+     * @param string $ext  ext
+     * @param string $file file
+     * 
+     * @return boolean
+     */
+    private function _checkFileExt($ext, $file)
+    {
+        return $ext == $this->_getFileExt($file);
+    }
+
+    /**
+     * 输出错误
+     * 
+     * @param string $message message
+     * 
+     * @return void
+     */
+    private function _error($message)
+    {
+        printf("[ \033[4;31;40mError\033[0m ]\t%s\n\n", $message);
+    }
+}

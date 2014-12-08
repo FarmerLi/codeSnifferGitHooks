@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<ruleset name="Cat">
+ <description>The Cat coding standard builds on the PEAR coding standard. </description>
+
+ <!-- <exclude-pattern>*.jar</exclude-pattern>
+ <exclude-pattern>js-src/app/components/*</exclude-pattern>
+ <exclude-pattern>js-src/components/*</exclude-pattern>
+ -->
+ 
+ <!-- Include the whole Squiz standard except FunctionComment, which we override -->
+ <rule ref="PEAR">
+  <exclude name="PEAR.Commenting.FileComment"/>
+  <exclude name="PEAR.Commenting.ClassComment"/>
+  <exclude name="PEAR.NamingConventions.ValidClassName"/>
+ </rule>
+
+ <rule ref="Generic.Files.LineLength">
+  <properties>
+   <property name="lineLimit" value="100"/>
+   <property name="absoluteLineLimit" value="120"/>
+  </properties>
+ </rule>
+
+
+</ruleset>
