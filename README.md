@@ -10,9 +10,9 @@ codeSnifferGitHooks
 * php 编码规范采用类pear风格，有适度修改。
 * js 编码规范采用google风格。
 * git 钩子将自动对待commit文件进行校验，校验内容包括：
-** php语法错误
-** php编码规范
-** js编码规范
+	* php语法错误
+	* php编码规范
+	* js编码规范
 * 校验不通过将不允许提交代码，不通过时，命令行将会报告本次校验结果，具体到代码行。
 * gjslint提供基本的格式修复工具fixjsstyle，使用方法
 
@@ -26,24 +26,29 @@ $ fixjsstyle path/file.js
 ---
 使用本钩子需要安装 php codeSniffer, gjslint, easy_install开源工具\<br>
 *PHP_CodeSniffer
-** 在线文档: [http://pear.php.net/package/PHP_CodeSniffer/]
-** 安装：使用pear安装，不会的请求助搜索工具
+	* 在线文档: [http://pear.php.net/package/PHP_CodeSniffer/]
+	* 安装：使用pear安装，不会的请求助搜索工具
 * easy_install
-** 安装：[http://peak.telecommunity.com/DevCenter/EasyInstall#installing-easy-install]
+	* 安装：[http://peak.telecommunity.com/DevCenter/EasyInstall#installing-easy-install]
 * gjslint
-** 在线文档: [https://developers.google.com/closure/utilities/docs/linter_howto?hl=zh-CN]
-** 安装：需要先安装python，使用easy_install安装
+	* 在线文档: [https://developers.google.com/closure/utilities/docs/linter_howto?hl=zh-CN]
+	* 安装：需要先安装python，使用easy_install安装
 
 配置
 ---
-Git库检出 CatGitHook 项目。
-将Cat 目录复制到：pear/codesniffer目录下，如：
+* Git库检出 CatGitHook 项目。\<br>
+* 将Cat 目录复制到：pear/codesniffer目录下，如：\<br>
+```Bash
 // 请注意大小写
 $ cp /projects/CatGitHook/Cat /usr/local/Cellar/php55/5.5.5/lib/php/PHP/CodeSniffer/Standards/Cat
-将Hook/pre-commit 和 Hook/config.ini复制到项目.git/hooks/目录下：
+```
+* 将Hook/pre-commit 和 Hook/config.ini复制到项目.git/hooks/目录下：
+```Bash
 $ cp /projects/CatGitHook/Hook/pre-commit /projects/cat/app/cat_ucenter/.git/hooks/
 $ cp /projects/CatGitHook/Hook/config.ini /projects/cat/app/cat_ucenter/.git/hooks/
-配置config.ini
+```
+* 配置config.ini
+```Bash
 [global]
 ; 需要排除的文件, 使用正则
 exclude[] = 
@@ -72,3 +77,4 @@ standard = Cat
 enable = 1
 ; gjslint 执行文件所在路径
 path = gjslint
+```
